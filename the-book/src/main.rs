@@ -1,41 +1,20 @@
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
+use std::future::Future;
+use trpl::Html;
 
-fn main() {
-    // transmitter and receiver
-    // multiple producer, single consumer
-    let (tx, rx) = mpsc::channel();
+fn page_title(url: &str) -> impl Future<Output = Option<String>> {
+    async move {
+        let text = trpl::get(url).await.text().await;
+        Html::parse(&text)
+            .select_first("title")
+            .map(|title| title.inner_html())
+    }
+}
 
-    let tx1 = tx.clone();
-
-    thread::spawn(move || {
-        let vals = vec![
-            String::from("hi"),
-            String::from("from"),
-            String::from("the"),
-            String::from("thread"),
-        ];
-        for val in vals {
-            tx1.send(val).unwrap();
-            thread::sleep(Duration::from_secs(1));
-        }
-    });
-
-    thread::spawn(move || {
-        let vals = vec![
-            String::from("more"),
-            String::from("messages"),
-            String::from("for"),
-            String::from("you"),
-        ];
-        for val in vals {
-            tx.send(val).unwrap();
-            thread::sleep(Duration::from_secs(1));
-        }
-    });
-
-    for received in rx {
-        println!("Got: {received}");
+async fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let url = &args[1];
+    match page_title(url).await {
+        Some(title) => println!("The title for {url} was {title}"),
+        None => println!("{url} had no title"),
     }
 }
