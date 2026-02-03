@@ -1,10 +1,31 @@
 use std::{collections::HashMap};
+use std::ops::Index;
 
 #[derive(Debug, PartialEq)]
-enum Value {
+pub enum Value {
     String(String),
     Array(Vec<Value>),
     Object(HashMap<String, Value>),
+}
+
+impl Index<&str> for Value {
+    type Output = Value;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            Value::Object(map) => map.get(key).expect("no such key in object"),
+            _ => panic!("cannot index with &str into non-object")
+        }
+    }
+}
+
+impl Index<usize> for Value {
+    type Output = Value;
+    fn index(&self, index: usize) -> &Self::Output {
+        match self {
+            Value::Array(vec) => vec.get(index).expect("index out of bounds"),
+            _ => panic!("cannot index with usize into non-array")
+        } 
+    }
 }
 
 fn tokenize(raw: &str) -> Vec<String> {
@@ -36,7 +57,7 @@ fn tokenize(raw: &str) -> Vec<String> {
     return tokens;
 }
 
-fn parse(raw: &str) -> Value {
+pub fn parse(raw: &str) -> Value {
     let tokens = tokenize(raw);
     let mut cursor = 0;
     return parse_value(&tokens, &mut cursor);

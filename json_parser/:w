@@ -1,0 +1,10 @@
+fn main() {
+    let data = r#"
+{
+    "name": "John Doe",
+    "age": 43
+}";
+
+ 
+}
+
