@@ -20,12 +20,15 @@ fn tokenize(raw: &str) -> Vec<String> {
             tokens.push(current.to_string());
             buffer.clear();
         } else if current == ':' || current == ',' {
-            tokens.push(buffer.clone());
+            if buffer.len() > 0 {
+                tokens.push(buffer.clone());
+            }
             tokens.push(current.to_string());
             buffer.clear();
             // "John Doe" みたいに String の中のスペースは無視してほしくない
         } else if current == '\n' || (current == ' ' && buffer.len() == 0) {
             continue;
+            tokens.push(buffer.clone());
         } else {
             buffer.push(current);
         }
@@ -165,7 +168,6 @@ mod tests {
         obj.insert(String::from("\"age\""), Value::String(String::from("43")));
         let answer: Value = Value::Object(obj);
         let tokens = tokenize(data);
-        println!("{:?}", tokens);
         assert_eq!(v, answer);
     }
 
