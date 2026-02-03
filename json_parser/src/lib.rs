@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::current};
 
 #[derive(Debug, PartialEq)]
 enum Value {
@@ -14,20 +14,22 @@ fn tokenize(raw: &str) -> Vec<String> {
         if current == '{' || current == '[' {
             tokens.push(current.to_string());
         } else if current == '}' || current == ']' {
-            tokens.push(buffer.clone());
-            buffer = current.to_string();
+            if buffer.len() > 0 {
+                tokens.push(buffer.clone());
+            }
+            tokens.push(current.to_string());
+            buffer.clear();
         } else if current == ':' || current == ',' {
             tokens.push(buffer.clone());
             tokens.push(current.to_string());
             buffer.clear();
-        } else if current == '\n' || current == ' ' {
+            // "John Doe" みたいに String の中のスペースは無視してほしくない
+        } else if current == '\n' || (current == ' ' && buffer.len() == 0) {
             continue;
         } else {
             buffer.push(current);
         }
     }
-    let last_char = raw.chars().nth(raw.len() - 1).unwrap();
-    tokens.push(last_char.to_string());
     return tokens;
 }
 
@@ -66,7 +68,6 @@ fn parse_object(tokens: &Vec<String>, cursor: &mut usize) -> Value {
                     }
                     let value = parse_value(tokens, cursor);
                     obj.insert(key.to_string(), value);
-                    *cursor += 1;
                     match tokens.get(*cursor) {
                         Some(v) => {
                             if v == "," {
@@ -89,11 +90,19 @@ fn parse_object(tokens: &Vec<String>, cursor: &mut usize) -> Value {
 fn parse_array(tokens: &Vec<String>, cursor: &mut usize) -> Value {
     let mut array: Vec<Value> = Vec::new();
     *cursor += 1;
-    while tokens.get(*cursor).unwrap() != "]" {
-        let value = parse_value(tokens, cursor);
-        array.push(value);
-        if tokens.get(*cursor).unwrap() == "," {
-            *cursor += 1;
+    loop {
+        match tokens.get(*cursor) {
+            Some(v) => {
+                if v == "]" {
+                    break;
+                } else if v == "," {
+                    *cursor += 1;
+                } else {
+                    let value = parse_value(tokens, cursor);
+                    array.push(value);
+                }
+            }
+            None => break,
         }
     }
     *cursor += 1;
@@ -143,7 +152,7 @@ mod tests {
         let data = r#"
 {
     "name": "John Doe",
-    "age": 43,
+    "age": 43
 }
         "#;
         let v: Value = parse(data);
@@ -158,5 +167,79 @@ mod tests {
         let tokens = tokenize(data);
         println!("{:?}", tokens);
         assert_eq!(v, answer);
+    }
+
+    #[test]
+    fn test_parse_simple_array() {
+        let data = "[1,2,3]";
+        let v = parse(data);
+        let expected = Value::Array(vec![
+            Value::String(String::from("1")),
+            Value::String(String::from("2")),
+            Value::String(String::from("3")),
+        ]);
+        assert_eq!(v, expected);
+    }
+
+    #[test]
+    fn test_parse_array_with_strings() {
+        let data = r#"["hello","world"]"#;
+        let v = parse(data);
+        let expected = Value::Array(vec![
+            Value::String(String::from("\"hello\"")),
+            Value::String(String::from("\"world\"")),
+        ]);
+        assert_eq!(v, expected);
+    }
+
+    #[test]
+    fn test_parse_nested_array() {
+        let data = "[[1,2],[3,4]]";
+        let v = parse(data);
+        let expected = Value::Array(vec![
+            Value::Array(vec![
+                Value::String(String::from("1")),
+                Value::String(String::from("2")),
+            ]),
+            Value::Array(vec![
+                Value::String(String::from("3")),
+                Value::String(String::from("4")),
+            ]),
+        ]);
+        assert_eq!(v, expected);
+    }
+
+    #[test]
+    fn test_parse_array_of_objects() {
+        let data = r#"[{"a":1},{"b":2}]"#;
+        let v = parse(data);
+
+        let mut obj1 = HashMap::new();
+        obj1.insert(String::from("\"a\""), Value::String(String::from("1")));
+
+        let mut obj2 = HashMap::new();
+        obj2.insert(String::from("\"b\""), Value::String(String::from("2")));
+
+        let expected = Value::Array(vec![Value::Object(obj1), Value::Object(obj2)]);
+        assert_eq!(v, expected);
+    }
+
+    #[test]
+    fn test_parse_object_with_array() {
+        let data = r#"{"numbers":[1,2,3]}"#;
+        let v = parse(data);
+
+        let mut obj = HashMap::new();
+        obj.insert(
+            String::from("\"numbers\""),
+            Value::Array(vec![
+                Value::String(String::from("1")),
+                Value::String(String::from("2")),
+                Value::String(String::from("3")),
+            ]),
+        );
+
+        let expected = Value::Object(obj);
+        assert_eq!(v, expected);
     }
 }
