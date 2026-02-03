@@ -49,7 +49,6 @@ fn tokenize(raw: &str) -> Vec<String> {
             // "John Doe" みたいに String の中のスペースは無視してほしくない
         } else if current == '\n' || (current == ' ' && buffer.len() == 0) {
             continue;
-            tokens.push(buffer.clone());
         } else {
             buffer.push(current);
         }
