@@ -14,6 +14,6 @@ fn main() {
 }
 ```
 ```sh
-Object({"\"age\"": String("43"), "name": String("\"John Doe\"")})
+Object({"age": String("43"), "name": String("\"John Doe\"")})
 "John Doe"
 ```
